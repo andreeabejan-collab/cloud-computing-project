@@ -32,6 +32,12 @@ async function readErrorMessage(res) {
   return text || `Request failed (${res.status})`
 }
 
+const AVIF_ERROR = "We don't accept AVIF files. Please use JPEG, PNG, WebP, or GIF."
+
+function isAvif(file) {
+  return file.type === 'image/avif' || file.name.toLowerCase().endsWith('.avif')
+}
+
 /**
  * Insert / upload images into the gallery.
  * Wire `VITE_UPLOAD_URL` in `.env` if your upload path differs from `…/upload`.
@@ -58,10 +64,19 @@ export function PictureUploadInsert({ listUrl, onUploadSuccess, variant = 'defau
 
   const addFiles = useCallback(
     (incoming) => {
-      const list = Array.from(incoming).filter((f) => f.type.startsWith('image/'))
-      if (!list.length) return
+      const list = Array.from(incoming)
+
+      if (list.some(isAvif)) {
+        setMessage({ type: 'error', text: AVIF_ERROR })
+        return
+      }
+
+      const images = list.filter((f) => f.type.startsWith('image/'))
+      if (!images.length) return
+
+      setMessage(null)
       setFiles((prev) => {
-        const merged = [...prev, ...list]
+        const merged = [...prev, ...images]
         resetPreviews(merged)
         return merged
       })
@@ -82,6 +97,11 @@ export function PictureUploadInsert({ listUrl, onUploadSuccess, variant = 'defau
     e.preventDefault()
     if (!files.length) {
       setMessage({ type: 'error', text: 'Choose one or more images first.' })
+      return
+    }
+
+    if (files.some(isAvif)) {
+      setMessage({ type: 'error', text: AVIF_ERROR })
       return
     }
 
@@ -215,7 +235,7 @@ export function PictureUploadInsert({ listUrl, onUploadSuccess, variant = 'defau
               ref={fileInputRef}
               id={inputId}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/gif"
               multiple
               className="hidden"
               onChange={(e) => {
