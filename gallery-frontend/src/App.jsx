@@ -5,7 +5,6 @@ import { PictureUploadInsert } from '@/components/PictureUploadInsert'
 import { Button } from '@/components/ui/button'
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -123,7 +122,7 @@ function App() {
               {selectedCategory}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Curated media with soft labels.
+              Get a view from different perspectives around the world
             </p>
           </div>
         </div>
@@ -189,16 +188,8 @@ function App() {
                             {label}
                           </span>
                         ))}
-                        <span className="ml-auto rounded-md bg-emerald-600/85 px-2 py-0.5 text-[11px] font-medium text-white">
-                          ✓ Clean
-                        </span>
                       </div>
                     </div>
-                    <CardContent className="border-t border-border/60 py-3">
-                      <p className="truncate text-sm font-medium text-card-foreground">
-                        {img.Labels || `${img.Category ?? 'Image'}`}
-                      </p>
-                    </CardContent>
                   </Card>
                 )
               })}

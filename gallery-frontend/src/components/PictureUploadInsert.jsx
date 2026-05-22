@@ -12,17 +12,30 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { uploadFileToPresignedUrl } from '@/lib/uploadToS3'
 
 function buildUploadUrl(listImagesUrl) {
   const fromEnv = import.meta.env.VITE_UPLOAD_URL
   if (fromEnv) return fromEnv
+  if (!listImagesUrl) return undefined
   return listImagesUrl.replace(/\/?images\/?$/i, '') + '/upload'
+}
+
+async function readErrorMessage(res) {
+  const text = await res.text().catch(() => '')
+  try {
+    const json = JSON.parse(text)
+    if (typeof json.error === 'string') return json.error
+  } catch {
+    // not JSON
+  }
+  return text || `Request failed (${res.status})`
 }
 
 /**
  * Insert / upload images into the gallery.
  * Wire `VITE_UPLOAD_URL` in `.env` if your upload path differs from `…/upload`.
- * Sends multipart field `file` only; categorization is handled by your backend (e.g. AWS).
+ * Requests a presigned S3 URL, then PUTs the file directly to S3.
  */
 export function PictureUploadInsert({ listUrl, onUploadSuccess, variant = 'default' }) {
   const isSidebar = variant === 'sidebar'
@@ -72,23 +85,32 @@ export function PictureUploadInsert({ listUrl, onUploadSuccess, variant = 'defau
       return
     }
 
+    if (!uploadUrl) {
+      setMessage({ type: 'error', text: 'Missing VITE_API_URL or VITE_UPLOAD_URL in .env' })
+      return
+    }
+
     setIsUploading(true)
     setMessage(null)
 
     try {
       for (const file of files) {
-        const body = new FormData()
-        body.append('file', file)
-
-        const res = await fetch(uploadUrl, {
+        const presignRes = await fetch(uploadUrl, {
           method: 'POST',
-          body,
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ filename: file.name }),
         })
 
-        if (!res.ok) {
-          const detail = await res.text().catch(() => '')
-          throw new Error(detail || `Upload failed (${res.status})`)
+        if (!presignRes.ok) {
+          throw new Error(await readErrorMessage(presignRes))
         }
+
+        const { uploadUrl: s3Url } = await presignRes.json()
+        if (!s3Url) {
+          throw new Error('Upload API did not return a presigned URL.')
+        }
+
+        await uploadFileToPresignedUrl(file, s3Url)
       }
 
       clearFiles()
@@ -135,10 +157,8 @@ export function PictureUploadInsert({ listUrl, onUploadSuccess, variant = 'defau
                 'Drop images here or browse. Category is assigned automatically after upload.'
               ) : (
                 <>
-                  Drag images here or browse. Images are sent as{' '}
-                  <code className="rounded bg-muted px-1 py-0.5 text-xs">multipart/form-data</code>{' '}
-                  with the <code className="rounded bg-muted px-1 py-0.5 text-xs">file</code> field;
-                  your AWS pipeline assigns categories.
+                  Drag images here or browse. Files upload to S3 via a presigned URL; your AWS
+                  pipeline assigns categories.
                 </>
               )}
             </CardDescription>
