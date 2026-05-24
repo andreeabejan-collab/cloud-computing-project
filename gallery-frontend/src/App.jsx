@@ -133,7 +133,7 @@ function App() {
               <CardHeader>
                 <CardTitle className="text-base font-medium">Loading</CardTitle>
                 <CardDescription className="space-y-3">
-                  <span className="block">Fetching media from your API…</span>
+                  <span className="block">Fetching media…</span>
                   <span
                     className="mx-auto block h-1.5 max-w-xs rounded-full bg-primary/20 animate-pulse motion-reduce:animate-none motion-reduce:bg-muted"
                     aria-hidden
